@@ -12,12 +12,6 @@ server/node_modules/
 server/.env
 client/.env
 
-# Production builds
-dist/
-client/dist/
-build/
-client/build/
-
 # Uploaded files (keep .gitkeep)
 server/uploads/*
 !server/uploads/.gitkeep

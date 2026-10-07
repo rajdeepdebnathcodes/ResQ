@@ -30,12 +30,7 @@ app.use(
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (mobile apps, curl, postman) or matching client url
-      if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin === config.CLIENT_URL) {
-        callback(null, true);
-      } else {
-        callback(null, true); // Permissive for local university networks & AWS demos
-      }
+      callback(null, true); // Permissive for local, LAN & AWS demos
     },
     credentials: true
   })
@@ -77,17 +72,34 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/users', userRoutes);
 
-// Production Static Client Serving (Single-server deployment on AWS or local test)
-const clientDistPath = path.resolve(__dirname, '../../client/dist');
-if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
+// Production Static Client Serving (Robust detection for local & AWS EC2)
+const candidateDistPaths = [
+  path.resolve(__dirname, '../../client/dist'),
+  path.resolve(__dirname, '../client/dist'),
+  path.resolve(process.cwd(), '../client/dist'),
+  path.resolve(process.cwd(), 'client/dist'),
+  path.resolve('/home/ubuntu/ResQ/client/dist')
+];
+
+let activeDistPath = null;
+for (const cand of candidateDistPaths) {
+  if (fs.existsSync(path.join(cand, 'index.html'))) {
+    activeDistPath = cand;
+    break;
+  }
+}
+
+if (activeDistPath) {
+  console.log(`[Production Static] Successfully serving client from: ${activeDistPath}`);
+  app.use(express.static(activeDistPath));
   app.get('*', (req, res, next) => {
-    // If request does not start with /api or /uploads, send index.html
     if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
-      return res.sendFile(path.join(clientDistPath, 'index.html'));
+      return res.sendFile(path.join(activeDistPath, 'index.html'));
     }
     next();
   });
+} else {
+  console.warn('[Warning] client/dist/index.html was not found in candidate paths. Frontend static files not mounted.');
 }
 
 // 404 handler for API routes
