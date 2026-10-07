@@ -19,9 +19,10 @@ const userRoutes = require('./routes/userRoutes');
 
 const app = express();
 
-// Security headers with resource sharing for uploaded images
+// Security headers (Disable default CSP upgrade-insecure-requests so HTTP IP works on EC2)
 app.use(
   helmet({
+    contentSecurityPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' }
   })
 );
@@ -72,7 +73,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/users', userRoutes);
 
-// Production Static Client Serving (Robust detection for local & AWS EC2)
+// Production Static Client Serving (Robust candidate detection)
 const candidateDistPaths = [
   path.resolve(__dirname, '../../client/dist'),
   path.resolve(__dirname, '../client/dist'),
@@ -90,7 +91,7 @@ for (const cand of candidateDistPaths) {
 }
 
 if (activeDistPath) {
-  console.log(`[Production Static] Successfully serving client from: ${activeDistPath}`);
+  console.log(`[Production Static] Serving frontend from: ${activeDistPath}`);
   app.use(express.static(activeDistPath));
   app.get('*', (req, res, next) => {
     if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
@@ -99,7 +100,7 @@ if (activeDistPath) {
     next();
   });
 } else {
-  console.warn('[Warning] client/dist/index.html was not found in candidate paths. Frontend static files not mounted.');
+  console.warn('[Warning] client/dist/index.html was not found in candidate paths.');
 }
 
 // 404 handler for API routes
